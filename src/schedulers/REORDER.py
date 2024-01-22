@@ -1,25 +1,59 @@
-from collections import defaultdict
-from typing import List
+from collections import defaultdict, namedtuple
+from typing import Dict, List
 from simso.core import Scheduler
 
-from simso.core.Task import PTask
+from simso.core.Task import PTask, TaskInfo
+from simso.core.Job import Job
+from simso.core.Processor import Processor
+
+LastJob = namedtuple("LastJob", ["task", "start", "end"])
 
 
 class REORDER(Scheduler):
     def init(self):
         utilization = sum(task.wcet / task.period for task in self.task_list)
         assert utilization <= 1, "Utilization must be <= 1"
+
+        # Worst-case response time
         self.wcrt = compute_wcrt(self.task_list)
+        # Remaining inversion budget, updated at each activation
+        self.rib: Dict[PTask, float] = {}
+        # last job that ran, used to update the remaining inversion budget on schedule
+        self.last_job = LastJob(None, -1, -1)
+
         print(self.task_list, self.wcrt)
         pass
 
-    def on_activate(self, job):
+    def on_activate(self, job: Job):
+        self.rib[job.task] = self.wcrt[job.task.identifier]
         pass
 
-    def on_terminated(self, job):
+    def on_terminated(self, job: Job):
+        if job.task == self.last_job.task:
+            self.last_job.end = self.sim.now_ms()
         pass
 
-    def schedule(self, cpu):
+    def schedule(self, cpu: Processor):
+        if self.last_job.start != -1:
+            if self.last_job.end == -1:
+                self.last_job.end = self.sim.now_ms()
+            self.update_rib()
+        pass
+
+    def update_rib(self):
+        assert (
+            self.last_job.start != -1
+            and self.last_job.end != -1
+            and self.last_job.task != None
+        ), "update_rib: last_job not initialized"
+        for task_i in self.rib.keys():
+            if (
+                task_i == self.last_job.task
+                or task_i.deadline > self.last_job.task.deadline
+            ):
+                continue
+            self.rib[task_i] -= self.last_job.end - self.last_job.start
+
         pass
 
 

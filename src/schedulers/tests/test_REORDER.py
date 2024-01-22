@@ -2,7 +2,6 @@ import unittest
 
 from simso.core.Task import PTask
 from ..REORDER import compute_wcrt
-from src.simso.model_builder import ModelBuilder
 
 
 class SampleTask:
