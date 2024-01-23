@@ -14,3 +14,4 @@ def entrypoint():
     model = builder.build()
     model.run_model()
     print(model.results.total_exceeded_count)
+    # print(model.logs)

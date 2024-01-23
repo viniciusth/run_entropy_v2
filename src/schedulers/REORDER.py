@@ -1,12 +1,14 @@
 from collections import defaultdict, namedtuple
 from typing import Dict, List
-from simso.core import Scheduler
+import random
 
-from simso.core.Task import PTask, TaskInfo
+from simso.core import Scheduler, Timer, Processor
+from simso.core.Task import PTask
 from simso.core.Job import Job
-from simso.core.Processor import Processor
 
 LastJob = namedtuple("LastJob", ["task", "start", "end"])
+
+infinity = int(1e30)
 
 
 class REORDER(Scheduler):
@@ -21,24 +23,71 @@ class REORDER(Scheduler):
         # last job that ran, used to update the remaining inversion budget on schedule
         self.last_job = LastJob(None, -1, -1)
 
-        print(self.task_list, self.wcrt)
-        pass
+        self.ready_list = []
+        self.to_resched = False
+        self.timer = None
+
+    def reschedule(self):
+        if self.timer is not None:
+            self.timer.stop()
+            self.timer = None
+
+        if not self.to_resched:
+            self.processors[0].resched()
+
+        self.to_resched = True
 
     def on_activate(self, job: Job):
         self.rib[job.task] = self.wcrt[job.task.identifier]
-        pass
+        self.ready_list.append(job)
+        self.reschedule()
 
     def on_terminated(self, job: Job):
         if job.task == self.last_job.task:
             self.last_job.end = self.sim.now_ms()
-        pass
+            self.resched_on_arrival = False
+
+        self.rib.pop(job.task)
+
+        if job in self.ready_list:
+            self.ready_list.remove(job)
+
+        self.reschedule()
 
     def schedule(self, cpu: Processor):
+        self.to_resched = False
+
         if self.last_job.start != -1:
             if self.last_job.end == -1:
                 self.last_job.end = self.sim.now_ms()
             self.update_rib()
-        pass
+
+        ready_jobs = [j for j in self.ready_list if j.is_active()]
+
+        if ready_jobs:
+            highest_priority_job = min(ready_jobs, key=lambda x: x.absolute_deadline)
+            hp_rib = self.rib[highest_priority_job.task]
+
+            assert hp_rib >= 0, "schedule: highest priority job has negative rib"
+            if hp_rib == 0:
+                return (highest_priority_job, cpu)
+
+            mthp = self.minimum_inversion_deadline(highest_priority_job, ready_jobs)
+            candidates = [j for j in ready_jobs if j.absolute_deadline <= mthp]
+
+            selected_job = random.choice(candidates)
+            if selected_job == highest_priority_job:
+                return (highest_priority_job, cpu)
+
+            v_hat = min(
+                [
+                    self.rib[j.task]
+                    for j in ready_jobs
+                    if j.absolute_deadline < selected_job.absolute_deadline
+                ]
+            )
+            self.timer = Timer(self.sim, REORDER.reschedule, (self,), v_hat, cpu)
+            return (selected_job, cpu)
 
     def update_rib(self):
         assert (
@@ -54,7 +103,16 @@ class REORDER(Scheduler):
                 continue
             self.rib[task_i] -= self.last_job.end - self.last_job.start
 
-        pass
+    def minimum_inversion_deadline(self, job: Job, ready_jobs: List[Job]):
+        opts = [
+            j.absolute_deadline
+            for j in ready_jobs
+            if j.absolute_deadline > job.absolute_deadline and self.rib[j.task] < 0
+        ]
+        if opts:
+            return min(opts)
+        else:
+            return infinity
 
 
 def intceil(x: int, y: int):
