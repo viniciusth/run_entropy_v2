@@ -15,13 +15,13 @@ class TaskParams(TypedDict):
     activation_date: int
     wcet: int
     deadline: int
-    acet: float
+    proportion: float
 
 
 class ACETModelBuilder:
     def __init__(self):
         self.config = Configuration()
-        self.config.etm = "acet"
+        self.config.etm = "pacet"
         self.cur_task_id = 1
         self.cur_cpu_id = 1
 
@@ -33,7 +33,7 @@ class ACETModelBuilder:
             activation_date=kwargs.get("activation_date"),
             wcet=kwargs.get("wcet"),
             deadline=kwargs.get("deadline"),
-            acet=kwargs.get("acet"),
+            et_stddev=kwargs.get("proportion"),
         )
         self.cur_task_id += 1
 
