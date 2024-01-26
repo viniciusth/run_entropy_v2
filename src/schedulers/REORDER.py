@@ -1,5 +1,5 @@
 from collections import defaultdict, namedtuple
-from typing import Dict, List
+from typing import Dict, List, Tuple
 import random
 
 from simso.core import Scheduler, Timer, Processor
@@ -19,7 +19,8 @@ class REORDER(Scheduler):
         # Worst-case response time
         self.wcrt = compute_wcrt(self.task_list)
         # Remaining inversion budget, updated at each activation
-        self.rib: Dict[PTask, float] = {}
+        self.rib: Dict[PTask, int] = {}
+        self.last_task_job: Dict[PTask, Tuple[int, int]] = {}
         # last job that ran, used to update the remaining inversion budget on schedule
         self.last_job = LastJob(None, -1, -1)
 
@@ -38,14 +39,19 @@ class REORDER(Scheduler):
         self.to_resched = True
 
     def on_activate(self, job: Job):
-        self.rib[job.task] = self.wcrt[job.task.identifier]
+        self.rib[job.task] = (
+            job.task.deadline - self.wcrt[job.task.identifier]
+        ) * self.sim.cycles_per_ms
+        self.last_task_job[job.task] = (self.sim.now(), infinity)
         self.ready_list.append(job)
         self.reschedule()
 
     def on_terminated(self, job: Job):
         if job.task == self.last_job.task:
-            self.last_job.end = self.sim.now_ms()
+            self.last_job = self.last_job._replace(end=self.sim.now())
             self.resched_on_arrival = False
+        x, _ = self.last_task_job[job.task]
+        self.last_task_job[job.task] = (x, self.sim.now())
 
         self.rib.pop(job.task)
 
@@ -59,7 +65,7 @@ class REORDER(Scheduler):
 
         if self.last_job.start != -1:
             if self.last_job.end == -1:
-                self.last_job.end = self.sim.now_ms()
+                self.last_job = self.last_job._replace(end=self.sim.now())
             self.update_rib()
 
         ready_jobs = [j for j in self.ready_list if j.is_active()]
@@ -76,8 +82,10 @@ class REORDER(Scheduler):
             candidates = [j for j in ready_jobs if j.absolute_deadline <= mthp]
 
             selected_job = random.choice(candidates)
-            if selected_job == highest_priority_job:
-                return (highest_priority_job, cpu)
+            self.last_job = LastJob(selected_job.task, self.sim.now(), -1)
+
+            if selected_job.absolute_deadline == highest_priority_job.absolute_deadline:
+                return (selected_job, cpu)
 
             v_hat = min(
                 [
@@ -86,7 +94,10 @@ class REORDER(Scheduler):
                     if j.absolute_deadline < selected_job.absolute_deadline
                 ]
             )
-            self.timer = Timer(self.sim, REORDER.reschedule, (self,), v_hat, cpu)
+            self.timer = Timer(
+                self.sim, REORDER.reschedule, (self,), v_hat, cpu, in_ms=False
+            )
+            self.timer.start()
             return (selected_job, cpu)
 
     def update_rib(self):
@@ -101,7 +112,9 @@ class REORDER(Scheduler):
                 or task_i.deadline > self.last_job.task.deadline
             ):
                 continue
-            self.rib[task_i] -= self.last_job.end - self.last_job.start
+            self.rib[task_i] -= intersection(
+                self.last_task_job[task_i], (self.last_job.start, self.last_job.end)
+            )
 
     def minimum_inversion_deadline(self, job: Job, ready_jobs: List[Job]):
         opts = [
@@ -117,6 +130,10 @@ class REORDER(Scheduler):
 
 def intceil(x: int, y: int):
     return (x + y - 1) // y
+
+
+def intersection(a: Tuple[int, int], b: Tuple[int, int]):
+    return max(0, min(a[1], b[1]) - max(a[0], b[0]))
 
 
 def compute_wcrt(task_list: List[PTask]):
