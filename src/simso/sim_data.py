@@ -24,4 +24,29 @@ class SimData:
                 computed.append((last_task[0] // c, model.now() // c, last_task[1]))
 
             self.processor_executions.append(computed)
-        print(self.processor_executions)
+
+    def into_hyperperiods(self, hyperperiod_len: int):
+        """
+        Returns a list of processor executions, where each execution is split into hyperperiods of length hyperperiod_len.
+        """
+        executions = []
+        for processor in self.processor_executions:
+            hyperperiods = []
+            cur_hyperperiod = 0
+            for start, end, task in processor:
+                assert end - start + 1 <= hyperperiod_len, "Hyperperiod too short"
+
+                if start >= cur_hyperperiod:
+                    hyperperiods.append([0] * hyperperiod_len)
+                    cur_hyperperiod += hyperperiod_len
+
+                for i in range(start, min(end, cur_hyperperiod)):
+                    hyperperiods[-1][i % hyperperiod_len] = task
+
+                if end >= cur_hyperperiod:
+                    hyperperiods.append([0] * hyperperiod_len)
+                    for i in range(cur_hyperperiod, end):
+                        hyperperiods[-1][i % hyperperiod_len] = task
+                    cur_hyperperiod += hyperperiod_len
+            executions.append(hyperperiods)
+        return executions
