@@ -4,9 +4,9 @@ import random
 import logging
 import math
 
-from simso.core import Scheduler, Timer, Processor
-from simso.core.Task import PTask
-from simso.core.Job import Job
+from simso.simso.core import Scheduler, Timer, Processor
+from simso.simso.core.Task import PTask
+from simso.simso.core.Job import Job
 
 LastJob = namedtuple("LastJob", ["task", "job", "start", "end"])
 
@@ -17,6 +17,7 @@ class REORDER(Scheduler):
     def init(self):
         utilization = sum(task.wcet / task.period for task in self.task_list)
         assert utilization <= 1, "Utilization must be <= 1"
+        assert len(self.processors) == 1, "REORDER only supports one processor"
 
         # Worst-case response time
         self.wcrt = compute_wcrt(self.task_list)
