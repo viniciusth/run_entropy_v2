@@ -4,9 +4,9 @@ import random
 import logging
 import math
 
-from simso.simso.core import Scheduler, Timer, Processor
-from simso.simso.core.Task import PTask
-from simso.simso.core.Job import Job
+from simso.core import Scheduler, Timer, Processor
+from simso.core.Task import PTask
+from simso.core.Job import Job
 
 LastJob = namedtuple("LastJob", ["task", "job", "start", "end"])
 
@@ -111,7 +111,7 @@ class REORDER(Scheduler):
             )
             if v_hat >= 0:
                 self.timer = Timer(
-                    self.sim, REORDER.reschedule, (self,), v_hat, cpu, in_ms=False
+                    self.sim, REORDER.reschedule, (self,), v_hat, cpu=cpu, in_ms=False
                 )
                 self.timer.start()
             logging.debug(

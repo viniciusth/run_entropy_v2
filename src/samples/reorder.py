@@ -42,26 +42,37 @@ def entrypoint(utilization: float):
 
     builder.set_scheduler(
         filename=os.path.join(os.getcwd(), "src", "schedulers", "REORDER.py")
-    )
+    )  # type: ignore
 
     rerun_model = builder.build()
     rerun_model.run_model()
 
     rerun_data = SimData(rerun_model)
     rerun_hp = rerun_data.into_hyperperiods(HYPERPERIOD_LEN)
-    rerun_entropy = entropy(rerun_hp)
+    rerun_entropy = entropy(rerun_hp, task_amount)
 
-    builder.set_scheduler(clas="simso.schedulers.EDF2")
+    builder.set_scheduler(clas="simso.schedulers.EDF2")  # type: ignore
     edf_model = builder.build()
     edf_model.run_model()
 
     edf_data = SimData(edf_model)
     edf_hp = edf_data.into_hyperperiods(HYPERPERIOD_LEN)
-    edf_entropy = entropy(edf_hp)
+    edf_entropy = entropy(edf_hp, task_amount)
 
     assert (
-        rerun_model.results.total_exceeded_count
-        == edf_model.results.total_exceeded_count
+        rerun_model.results.total_exceeded_count  # type: ignore
+        == edf_model.results.total_exceeded_count  # type: ignore
         == 0
     )
-    print(rerun_entropy, edf_entropy)
+
+    builder.set_scheduler(
+        filename=os.path.join(os.getcwd(), "src", "schedulers", "FG_RUN.py")
+    )  # type: ignore
+    fgrun_model = builder.build()
+    fgrun_model.run_model()
+    fgrun_data = SimData(fgrun_model)
+    fgrun_hp = fgrun_data.into_hyperperiods(HYPERPERIOD_LEN)
+    fgrun_entropy = entropy(fgrun_hp, task_amount)
+    assert fgrun_model.results.total_exceeded_count == 0 # type: ignore
+
+    print(rerun_entropy, edf_entropy, fgrun_entropy)

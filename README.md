@@ -29,7 +29,7 @@ python -m unittest discover
 
 
 ### Steps to follow
-- [] Implementing REORDER with a simple EDF scheduler
-- [] Implementing entropy analysis and case generation
-- [] Integrating REORDER scheduler with RUN
-- [] Analyzing entropy of REORDER, RUN, REORDER + RUN.
+- [x] Implementing REORDER with a simple EDF scheduler
+- [x] Implementing entropy analysis and case generation
+- [x] Add FG_RUN with delta
+- [] Analyze results

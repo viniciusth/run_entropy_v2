@@ -1,4 +1,4 @@
-from simso.simso.core import Scheduler
+from simso.core import Scheduler
 
 
 class RUN(Scheduler):

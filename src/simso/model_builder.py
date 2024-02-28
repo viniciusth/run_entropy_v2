@@ -6,8 +6,8 @@ from simso.core import Model
 
 
 class SchedulerParams(TypedDict):
-    clas: str
-    filename: str
+    clas: str | None
+    filename: str | None
 
 
 class TaskParams(TypedDict):
@@ -33,7 +33,7 @@ class ACETModelBuilder:
             activation_date=kwargs.get("activation_date"),
             wcet=kwargs.get("wcet"),
             deadline=kwargs.get("deadline"),
-            et_stddev=kwargs.get("proportion"),
+            et_stddev=kwargs.get("proportion"),  # type: ignore
         )
         self.cur_task_id += 1
 
@@ -46,8 +46,8 @@ class ACETModelBuilder:
         )
 
     def set_scheduler(self, **kwargs: Unpack[SchedulerParams]):
-        self.config.scheduler_info.clas = kwargs.get("clas")
-        self.config.scheduler_info.filename = kwargs.get("filename")
+        self.config.scheduler_info.clas = kwargs.get("clas")  # type: ignore
+        self.config.scheduler_info.filename = kwargs.get("filename")  # type: ignore
 
     def build(self) -> Model:
         self.config.check_all()
