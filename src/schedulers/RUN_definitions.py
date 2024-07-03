@@ -2,10 +2,12 @@ from fractions import Fraction
 
 INFINITO = 9000000000000
 
+
 class _Server(object):
     """
     Abstract class that represents a Server.
     """
+
     next_id = 1
 
     def __init__(self, is_dual, task=None):
@@ -24,7 +26,7 @@ class _Server(object):
         self.identifier = _Server.next_id
         _Server.next_id += 1
         if task:
-            if hasattr(task, 'utilization'):
+            if hasattr(task, "utilization"):
                 self.utilization += task.utilization
             else:
                 self.utilization += Fraction(task.wcet) / Fraction(task.period)
@@ -50,10 +52,12 @@ class _Server(object):
 
         self.budget = int(self.utilization * (self.next_deadline - current_instant))
 
+
 class TaskServer(_Server):
     """
     A Task Server is a Server that contains a real Task.
     """
+
     def __init__(self, task):
         super(TaskServer, self).__init__(False, task)
         self.last_cpu = None
@@ -63,6 +67,7 @@ class EDFServer(_Server):
     """
     An EDF Server is a Server with multiple children scheduled with EDF.
     """
+
     def __init__(self):
         super(EDFServer, self).__init__(False)
         self.children = []
@@ -75,10 +80,12 @@ class EDFServer(_Server):
         self.utilization += server.utilization
         server.parent = self
 
+
 class DualServer(_Server):
     """
     A Dual server is the opposite of its child.
     """
+
     def __init__(self, child):
         super(DualServer, self).__init__(True)
         self.child = child
@@ -87,14 +94,14 @@ class DualServer(_Server):
 
         self.dummyServer = child.dummyServer
 
+
 def add_job(sim, job, server):
     """
     Recursively update the deadlines of the parents of server.
     """
     server.job = job
     while server:
-        server.add_deadline(sim.now(), job.absolute_deadline *
-                            sim.cycles_per_ms)
+        server.add_deadline(sim.now(), job.absolute_deadline * sim.cycles_per_ms)
         server.create_job(sim, sim.now())
         server.last_release = sim.now()
         server = server.parent
@@ -105,7 +112,7 @@ def omega_t(servers, old, t):
     if not servers:
         return 0
 
-    beta = sum([budget(s, old, t) for  s in servers])
+    beta = sum([budget(s, old, t) for s in servers])
     servers.sort(key=lambda s: deadline(s, t), reverse=False)
 
     """for s in servers:
@@ -113,16 +120,18 @@ def omega_t(servers, old, t):
 
     return max(0, servers[0].next_deadline - t - beta)
 
+
 def release(server, t):
     if not server.periodicity:
         return server.last_release
 
     r = 0
     for p in server.periodicity:
-        aux = int(t/p)*p
+        aux = int(t / p) * p
         if aux > r:
             r = aux
     return r
+
 
 def deadline(server, t):
     if not server.periodicity:
@@ -130,19 +139,21 @@ def deadline(server, t):
 
     d = []
     for p in server.periodicity:
-        aux = (int(t/p)+1)*p
+        aux = (int(t / p) + 1) * p
         d.append(aux)
 
     return min(d)
 
+
 def budget(server, old, t):
-    if old != t and release(server,t) == release(server, old):
+    if old != t and release(server, t) == release(server, old):
         return server.budget
-    
+
     if old == t:
         return server.budget
 
-    return int(server.utilization * (deadline(server, t) - release(server,t)))
+    return int(server.utilization * (deadline(server, t) - release(server, t)))
+
 
 def get_child_tasks(server):
     """
@@ -159,6 +170,7 @@ def get_child_tasks(server):
                 tasks += get_child_tasks(child)
             return tasks
 
+
 def select_jobs(self, server, virtual, execute=True):
     """
     Select the jobs that should run according to RUN. The virtual jobs are
@@ -170,23 +182,23 @@ def select_jobs(self, server, virtual, execute=True):
 
     # Leaves
     if server.task:
-        #self.sim.logger.log("server {}, budget {}, next_deadline {}".format(server.identifier, server.budget, server.next_deadline))
+        # self.sim.logger.log("server {}, budget {}, next_deadline {}".format(server.identifier, server.budget, server.next_deadline))
         if execute and server.budget > 0:
 
             # select a dummy job
             if server.job is None:
-               jobs.append(server)
-               #self.sim.logger.log("SELEECT dummy".format())
-            #select a real job
+                jobs.append(server)
+                # self.sim.logger.log("SELEECT dummy".format())
+            # select a real job
             elif server.job.is_active():
                 jobs.append(server)
-                #self.sim.logger.log("SELEECT {}".format(server.identifier))
-            
+                # self.sim.logger.log("SELEECT {}".format(server.identifier))
+
     else:
         # Rule 2
         if server.is_dual:
-            #if execute:
-            #self.sim.logger.log("DualServer{}: BUDGET = {}, deadline = {}".format(server.identifier, server.budget, server.next_deadline))
+            # if execute:
+            # self.sim.logger.log("DualServer{}: BUDGET = {}, deadline = {}".format(server.identifier, server.budget, server.next_deadline))
             jobs += select_jobs(self, server.child, virtual, not execute)
         # Rule 1
         else:
@@ -196,58 +208,59 @@ def select_jobs(self, server, virtual, execute=True):
 
                 if self.is_idle and server == self.root:
                     min_server = [s for s in active_servers if s.dummyServer][0]
-                    
-                #if min_server.dummyServer and server == self.root:
+
+                # if min_server.dummyServer and server == self.root:
                 #    self.is_idle = True
             else:
                 min_server = None
-            
+
             for child in server.children:
-                jobs += select_jobs(self, child, virtual,
-                                    execute and child is min_server)
+                jobs += select_jobs(
+                    self, child, virtual, execute and child is min_server
+                )
     return jobs
 
+
 def delta_t(u, servers, old, t):
-    #self.sim.logger.log("delta_t".format())
+    # self.sim.logger.log("delta_t".format())
 
-    #servers = update_times(self, servers)
+    # servers = update_times(self, servers)
 
-    #servers = [s for s in servers if s.utilization > 0]
+    # servers = [s for s in servers if s.utilization > 0]
 
     if not servers or u > 0.95:
         return 0
 
-
     servers.sort(key=lambda s: deadline(s, t), reverse=False)
-    
+
     """for s in servers:
         self.sim.logger.log("id={}, release {}, next_deadline {}, budget = {}".format(s.identifier, release(self, s, t),deadline(self, s, t), budget(self, s, old, t)))
     """
 
     # get the biggest deadline
-    delta = deadline(servers[len(servers)-1], t) - t
-    #delta = servers[len(servers)-1].next_deadline  
-    
-    #self.sim.logger.log("start delta = {}".format(delta))
+    delta = deadline(servers[len(servers) - 1], t) - t
+    # delta = servers[len(servers)-1].next_deadline
+
+    # self.sim.logger.log("start delta = {}".format(delta))
 
     for j in range(0, len(servers)):
-        
+
         d = deadline(servers[j], t)
         c = 0
-        #self.sim.logger.log("j = {}, dj = {}, t = {}".format(servers[j].identifier, d, t))
-        #self.sim.logger.log("---------".format())
-        for i in range(0, j+1):
+        # self.sim.logger.log("j = {}, dj = {}, t = {}".format(servers[j].identifier, d, t))
+        # self.sim.logger.log("---------".format())
+        for i in range(0, j + 1):
 
-            ri = deadline(servers[i], t) #D(self, servers[i], t)
-            di = release(servers[i], d) #R(self, servers[i], d, t)
-            #self.sim.logger.log("i = {}, dj = {}, ri = {}, di = {}".format(servers[i].identifier, d, ri, di))
+            ri = deadline(servers[i], t)  # D(self, servers[i], t)
+            di = release(servers[i], d)  # R(self, servers[i], d, t)
+            # self.sim.logger.log("i = {}, dj = {}, ri = {}, di = {}".format(servers[i].identifier, d, ri, di))
 
-            c = c + budget(servers[i], old, t) + float(di - ri)*servers[i].utilization
-            #self.sim.logger.log("c = {}, ci = {}, eita = {}, u = {}".format(c, budget(self, servers[i], old, t), float(di - ri)*servers[i].utilization, servers[i].utilization))
-            #self.sim.logger.log("---------".format())
+            c = c + budget(servers[i], old, t) + float(di - ri) * servers[i].utilization
+            # self.sim.logger.log("c = {}, ci = {}, eita = {}, u = {}".format(c, budget(self, servers[i], old, t), float(di - ri)*servers[i].utilization, servers[i].utilization))
+            # self.sim.logger.log("---------".format())
 
         delta = min(delta, (d - t - c))
-        #self.sim.logger.log("delta = {}, dj-t-c = {}".format(delta, (d - t - c)))
+        # self.sim.logger.log("delta = {}, dj-t-c = {}".format(delta, (d - t - c)))
         if delta <= 0:
             return 0
 

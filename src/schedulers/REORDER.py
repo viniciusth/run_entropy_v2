@@ -7,12 +7,13 @@ import math
 from simso.core import Scheduler, Timer, Processor
 from simso.core.Task import PTask
 from simso.core.Job import Job
+from simso.schedulers import scheduler
 
 LastJob = namedtuple("LastJob", ["task", "job", "start", "end"])
 
 infinity = int(1e30)
 
-
+@scheduler("run_entropy_v2.schedulers.REORDER")
 class REORDER(Scheduler):
     def init(self):
         utilization = sum(task.wcet / task.period for task in self.task_list)

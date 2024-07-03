@@ -14,34 +14,10 @@ def entrypoint(utilization: float):
     tasks = gen_tasks(task_amount, utilization)
     for task in tasks:
         builder.add_task(**task)
-    # print(tasks)
-
-    # builder.add_task(
-    #     period=50,
-    #     deadline=50,
-    #     activation_date=0,
-    #     proportion=0.5,
-    #     wcet=9,
-    # )
-    # builder.add_task(
-    #     period=10,
-    #     deadline=10,
-    #     activation_date=0,
-    #     proportion=0.5,
-    #     wcet=1,
-    # )
-    # builder.add_task(
-    #     period=10,
-    #     deadline=10,
-    #     activation_date=0,
-    #     proportion=0.5,
-    #     wcet=5,
-    # )
-
     builder.set_duration(HYPERPERIOD_LEN * K)
 
     builder.set_scheduler(
-        filename=os.path.join(os.getcwd(), "src", "schedulers", "REORDER.py")
+        filename=os.path.join(os.getcwd(), "src", "schedulers", "P_REORDER.py")
     )  # type: ignore
 
     rerun_model = builder.build()
@@ -59,12 +35,6 @@ def entrypoint(utilization: float):
     edf_hp = edf_data.into_hyperperiods(HYPERPERIOD_LEN)
     edf_entropy = entropy(edf_hp, task_amount)
 
-    assert (
-        rerun_model.results.total_exceeded_count  # type: ignore
-        == edf_model.results.total_exceeded_count  # type: ignore
-        == 0
-    )
-
     builder.set_scheduler(
         filename=os.path.join(os.getcwd(), "src", "schedulers", "FG_RUN.py")
     )  # type: ignore
@@ -73,6 +43,15 @@ def entrypoint(utilization: float):
     fgrun_data = SimData(fgrun_model)
     fgrun_hp = fgrun_data.into_hyperperiods(HYPERPERIOD_LEN)
     fgrun_entropy = entropy(fgrun_hp, task_amount)
-    assert fgrun_model.results.total_exceeded_count == 0 # type: ignore
+    assert (
+        rerun_model.results.total_exceeded_count  # type: ignore
+        == edf_model.results.total_exceeded_count  # type: ignore
+        == fgrun_model.results.total_exceeded_count  # type: ignore
+        == 0
+    ), "Exceeded count is not 0: {} {} {}".format(
+        rerun_model.results.total_exceeded_count,  # type: ignore
+        edf_model.results.total_exceeded_count,  # type: ignore
+        fgrun_model.results.total_exceeded_count,  # type: ignore
+    )
 
     print(rerun_entropy, edf_entropy, fgrun_entropy)

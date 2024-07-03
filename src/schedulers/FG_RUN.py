@@ -9,10 +9,21 @@ tasks with implicit deadlines.
 
 from simso.core import Scheduler, Timer
 import random
-from src.schedulers.RUN_definitions import TaskServer, DualServer, delta_t, omega_t, EDFServer, get_child_tasks, select_jobs, add_job
 
-INFINITO = int(1e30) 
+from simso.schedulers import scheduler
+from src.schedulers.RUN_definitions import (
+    TaskServer,
+    DualServer,
+    delta_t,
+    EDFServer,
+    get_child_tasks,
+    select_jobs,
+    add_job,
+)
 
+INFINITO = int(1e30)
+
+@scheduler("run_entropy_v2.schedulers.FG_RUN")
 class FG_RUN(Scheduler):
     """
     RUN scheduler. The offline part is done here but the online part is mainly
@@ -141,7 +152,7 @@ class FG_RUN(Scheduler):
         self.task_to_subsystem[job.task].update_budget()
         subsystem.resched(self.processors[0])
 
-    def schedule(self, _): # type: ignore
+    def schedule(self, _):  # type: ignore
         """
         This method is called by the simulator. The sub-systems that should be
         rescheduled are also scheduled.
@@ -350,22 +361,24 @@ class ProperSubsystem(object):
 
         return decision
 
+
 def pack_BFD(servers):
     """
     Best-Fit with servers inversely sorted by their utilization.
     """
     return pack_BF(sorted(servers, key=lambda x: x.utilization, reverse=True))
 
+
 def pack_BF(servers):
     """
-    Create a list of EDF Servers by packing servers. Best-Fit 
+    Create a list of EDF Servers by packing servers. Best-Fit
     packing algorithm.
     """
 
     # Find packed servers if there is one (EDFServer)
-    packed_servers = []#[s for s in servers if s is EDFServer()]
+    packed_servers = []  # [s for s in servers if s is EDFServer()]
     for server in servers:
-        #Try to place the item in the fullest bin that will accommodate it, i.e., the one that will leave the least space remaining
+        # Try to place the item in the fullest bin that will accommodate it, i.e., the one that will leave the least space remaining
         packed_servers.sort(key=lambda x: x.utilization, reverse=True)
         for p_server in packed_servers:
             if p_server.utilization + server.utilization <= 1:

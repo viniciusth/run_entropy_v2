@@ -32,4 +32,8 @@ python -m unittest discover
 - [x] Implementing REORDER with a simple EDF scheduler
 - [x] Implementing entropy analysis and case generation
 - [x] Add FG_RUN with delta
-- [] Analyze results
+- [x] Analyze results
+- [x] Implement Multiprocessor REORDER via partitioning (already done by simso)
+- [x] Create tasksets with different number of processors/utilizations
+- [] Generate results and save data
+- [] Analyze results, create graphs and tables
