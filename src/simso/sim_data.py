@@ -1,5 +1,7 @@
 from simso.core import Model, ProcEvent
 
+from src.entropy.analysis import HYPERPERIOD_LEN, K
+
 
 class SimData:
     """
@@ -32,21 +34,29 @@ class SimData:
         executions = []
         for processor in self.processor_executions:
             hyperperiods = []
-            cur_hyperperiod = 0
+            cur_hyperperiod_end = 0
+            assert sorted(processor, key=lambda x: x[0]) == processor, "Processor not sorted"
             for start, end, task in processor:
                 assert end - start + 1 <= hyperperiod_len, "Hyperperiod too short"
+                if start == end:
+                    continue
 
-                if start >= cur_hyperperiod:
-                    hyperperiods.append([0] * hyperperiod_len)
-                    cur_hyperperiod += hyperperiod_len
+                while start >= cur_hyperperiod_end:
+                    hyperperiods.append([0 for _ in range(hyperperiod_len)])
+                    cur_hyperperiod_end += hyperperiod_len
 
-                for i in range(start, min(end, cur_hyperperiod)):
+                for i in range(start, min(end, cur_hyperperiod_end)):
                     hyperperiods[-1][i % hyperperiod_len] = task
 
-                if end >= cur_hyperperiod:
-                    hyperperiods.append([0] * hyperperiod_len)
-                    for i in range(cur_hyperperiod, end):
+                if end > cur_hyperperiod_end:
+                    hyperperiods.append([0 for _ in range(hyperperiod_len)])
+                    for i in range(cur_hyperperiod_end, end):
                         hyperperiods[-1][i % hyperperiod_len] = task
-                    cur_hyperperiod += hyperperiod_len
+                    cur_hyperperiod_end += hyperperiod_len
+            if len(hyperperiods) == 0:
+                print("got empty hyperperiods")
+                hyperperiods = [[0 for _ in range(hyperperiod_len)] for _ in range(K)]
+
+            assert len(hyperperiods) == K, f"Expected {K} hyperperiods, got {len(hyperperiods)}"
             executions.append(hyperperiods)
         return executions

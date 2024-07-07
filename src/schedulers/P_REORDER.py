@@ -4,9 +4,9 @@ from simso.core.Scheduler import SchedulerInfo
 from simso.utils.PartitionedScheduler import decreasing_first_fit
 
 
-@scheduler("run_entropy_v2.schedulers.P_REORDER")
+@scheduler("src.schedulers.P_REORDER")
 class P_REORDER(PartitionedScheduler):
     def init(self): # type: ignore
         PartitionedScheduler.init(
-            self, SchedulerInfo("run_entropy_v2.schedulers.REORDER"), decreasing_first_fit
+            self, SchedulerInfo("src.schedulers.REORDER"), decreasing_first_fit
         )

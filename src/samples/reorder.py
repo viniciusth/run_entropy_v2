@@ -6,11 +6,13 @@ import os
 import random
 
 
-def entrypoint(utilization: float):
+def entrypoint(utilization: float, processors: int):
     builder = ACETModelBuilder()
-    builder.add_cpu()
 
-    task_amount = random.randint(3, 10)
+    for _ in range(processors):
+        builder.add_cpu()
+
+    task_amount = random.randint(processors + 2, 3 * processors)
     tasks = gen_tasks(task_amount, utilization)
     for task in tasks:
         builder.add_task(**task)
@@ -25,15 +27,15 @@ def entrypoint(utilization: float):
 
     rerun_data = SimData(rerun_model)
     rerun_hp = rerun_data.into_hyperperiods(HYPERPERIOD_LEN)
-    rerun_entropy = entropy(rerun_hp, task_amount)
+    rerun_entropy = entropy(rerun_hp, task_amount, processors)
 
-    builder.set_scheduler(clas="simso.schedulers.EDF2")  # type: ignore
+    builder.set_scheduler(clas="simso.schedulers.P_EDF")  # type: ignore
     edf_model = builder.build()
     edf_model.run_model()
 
     edf_data = SimData(edf_model)
     edf_hp = edf_data.into_hyperperiods(HYPERPERIOD_LEN)
-    edf_entropy = entropy(edf_hp, task_amount)
+    edf_entropy = entropy(edf_hp, task_amount, processors)
 
     builder.set_scheduler(
         filename=os.path.join(os.getcwd(), "src", "schedulers", "FG_RUN.py")
@@ -42,7 +44,7 @@ def entrypoint(utilization: float):
     fgrun_model.run_model()
     fgrun_data = SimData(fgrun_model)
     fgrun_hp = fgrun_data.into_hyperperiods(HYPERPERIOD_LEN)
-    fgrun_entropy = entropy(fgrun_hp, task_amount)
+    fgrun_entropy = entropy(fgrun_hp, task_amount, processors)
     assert (
         rerun_model.results.total_exceeded_count  # type: ignore
         == edf_model.results.total_exceeded_count  # type: ignore

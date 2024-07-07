@@ -44,6 +44,7 @@ class ACETModelBuilder:
         self.config.add_processor(
             name=f"cpu_{self.cur_cpu_id}", identifier=self.cur_cpu_id
         )
+        self.cur_cpu_id += 1
 
     def set_scheduler(self, **kwargs: Unpack[SchedulerParams]):
         self.config.scheduler_info.clas = kwargs.get("clas")  # type: ignore

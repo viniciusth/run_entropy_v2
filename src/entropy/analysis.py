@@ -41,17 +41,19 @@ def hamming(a: List[int], b: List[int], offset: int) -> int:
     return ans
 
 
-def entropy(data: List[List[List[int]]], task_amount: int) -> float:
+def entropy(data: List[List[List[int]]], task_amount: int, processor_amount: int = 1) -> float:
     """
     Calculates the entropy of the schedule.
     data: Processor -> Hyperperiod -> Execution (start, end, task)
     """
 
-    def n(t: int) -> float:
+    def n(t: int, pi: int) -> float:
         ans = 0.0
         tasks_freq = [0] * (task_amount + 1)
+        assert len(data[pi]) == K, f"Expected {K} hyperperiods, got {len(data[pi])}"
         for hyperperiod in range(K):
-            tasks_freq[data[0][hyperperiod][t]] += 1
+            assert len(data[pi][hyperperiod]) == HYPERPERIOD_LEN, f"Expected {HYPERPERIOD_LEN} executions, got {len(data[pi][hyperperiod])}"
+            tasks_freq[data[pi][hyperperiod][t]] += 1
 
         for task in range(1, task_amount + 1):
             if tasks_freq[task] == 0:
@@ -62,6 +64,17 @@ def entropy(data: List[List[List[int]]], task_amount: int) -> float:
         return ans
 
     ans = 0.0
-    for t in range(HYPERPERIOD_LEN):
-        ans += n(t)
-    return ans
+    used_processors = 0
+    for pi in range(processor_amount):
+        used = False
+        for hyperperiod in range(K):
+            for t in range(HYPERPERIOD_LEN):
+                if data[pi][hyperperiod][t] != 0:
+                    used = True
+                    break
+        if not used:
+            continue
+        used_processors += 1
+        for t in range(HYPERPERIOD_LEN):
+            ans += n(t, pi)
+    return ans / used_processors

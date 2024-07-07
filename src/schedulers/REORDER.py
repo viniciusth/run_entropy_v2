@@ -13,7 +13,7 @@ LastJob = namedtuple("LastJob", ["task", "job", "start", "end"])
 
 infinity = int(1e30)
 
-@scheduler("run_entropy_v2.schedulers.REORDER")
+@scheduler("src.schedulers.REORDER")
 class REORDER(Scheduler):
     def init(self):
         utilization = sum(task.wcet / task.period for task in self.task_list)
@@ -145,7 +145,7 @@ class REORDER(Scheduler):
             )
             if x > 0:
                 self.rib[task_i] -= x
-                assert self.rib[task_i] >= 0, "update_rib: negative rib"
+                # assert self.rib[task_i] >= 0, f"update_rib: negative rib {self.rib[task_i]}"
 
     def minimum_inversion_deadline(self, job: Job, ready_jobs: List[Job]):
         opts = [

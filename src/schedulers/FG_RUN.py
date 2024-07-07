@@ -23,7 +23,7 @@ from src.schedulers.RUN_definitions import (
 
 INFINITO = int(1e30)
 
-@scheduler("run_entropy_v2.schedulers.FG_RUN")
+@scheduler("src.schedulers.FG_RUN")
 class FG_RUN(Scheduler):
     """
     RUN scheduler. The offline part is done here but the online part is mainly
