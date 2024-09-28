@@ -1,4 +1,9 @@
-numpy==1.24.4
-typer==0.9.0
+click==8.1.7
+numpy==1.21.6
+PyQt5==5.11.3
+PyQt5-sip==4.19.11
 simpy==2.3.1
+simsogui==0.9
+typer==0.9.0
+typing_extensions==4.7.1
 git+https://github.com/viniciusth/simso

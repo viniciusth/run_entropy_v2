@@ -314,6 +314,7 @@ class ProperSubsystem(object):
             self.is_idle = True
             sleep_for = (self.idleEnd - t) * random.random()
             self.add_timer(int(sleep_for), self.processors[0])
+            return []
         else:
             self.is_idle = False
 
@@ -333,11 +334,13 @@ class ProperSubsystem(object):
         wakeup_delay = min([s.budget for s in self.virtual if s.budget > 0])
 
         if wakeup_delay > 0:
+            # randomize delay
+            # wakeup_delay = wakeup_delay * random.random()
             self.timer = Timer(
                 self.sim,
                 ProperSubsystem.virtual_event,
                 (self, self.processors[0]),
-                wakeup_delay,
+                int(wakeup_delay),
                 cpu=self.processors[0],
                 in_ms=False,
             )

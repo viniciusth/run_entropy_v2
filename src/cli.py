@@ -1,8 +1,10 @@
 import typer
+from src.data.analysis import run_analysis
 from src.data.gen_buckets import gen_buckets
 from src.data.gen_results import gen_results
 import src.samples.reorder as reorder
 import logging
+import simsogui
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
 
@@ -26,12 +28,21 @@ def generate_results(file_path: str = typer.Option("buckets.json", "--file-path"
     """
     gen_results(file_path)
 
+@app.command()
+def read_results(file_path: str = typer.Option("buckets_results.json", "--file-path", "-f")):
+    """
+    Reads the results from a file and prints them.
+    """
+    run_analysis(file_path)
 
 
 @app.command()
 def generate_buckets(file_path: str = typer.Option("buckets.json", "--file-path", "-f")):
     gen_buckets(file_path)
 
+@app.command()
+def gui():
+    simsogui.run_gui()
 
 @app.callback()
 def main(debug: bool = typer.Option(False, "--debug", "-d")):

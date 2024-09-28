@@ -5,7 +5,7 @@ from ..entropy.case_gen import gen_tasks
 PROCESSORS = [8, 16, 32]
 TASKS_PER_BUCKET = 100
 
-def gen_buckets(file_path: str | None = None):
+def gen_buckets(file_path = None):
     """
     Simulation Setup:
     """

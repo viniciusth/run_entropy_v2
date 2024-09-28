@@ -11,6 +11,7 @@ def gen_results(file_path: str):
     input, partial_result = setup(file_path)
 
     line_sep = "\n" + "-"*50
+    name = file_path.split(".")[:-1][0]
 
     current_idx = 0
     tests_ran_without_saving = 0
@@ -37,15 +38,17 @@ def gen_results(file_path: str):
 
                 if tests_ran_without_saving == 5:
                     partial_result["idx"] = current_idx
-                    with open(f"{file_path.split('.')[:-1][0]}_partial.json", "w") as f:
+                    with open(f"{name}_partial.json", "w") as f:
                         f.write(str(partial_result))
                     print()
                     print("Saved partial results")
                     tests_ran_without_saving = 0
 
-    with open(f"{file_path.split('.')[:-1][0]}_results.json", "w") as f:
+    with open(f"{name}_results.json", "w") as f:
         partial_result.pop("idx")
         f.write(str(partial_result))
+    print("Saved final results")
+    os.remove(f"{name}_partial.json")
 
 
 def setup(file_path: str) -> Tuple[dict, dict]:
@@ -80,15 +83,15 @@ def setup(file_path: str) -> Tuple[dict, dict]:
 
 def run_test(test, processors):
     filename = os.path.join(os.getcwd(), "src", "schedulers", "P_REORDER.py")
-    p_reorder, missed = run_scheduler(test, processors, {"filename": filename})
-    if missed > 0:
-        print("P_REORDER missed some deadlines, skipping test")
+    p_reorder, err = run_scheduler(test, processors, {"filename": filename})
+    if err is not None:
+        print("P_REORDER error:", err)
         return None, None
 
-    filename = os.path.join(os.getcwd(), "src", "schedulers", "FG_RUN.py")
-    fg_run, missed = run_scheduler(test, processors, {"filename": filename})
-    if missed > 0:
-        print("FG_RUN missed some deadlines, skipping test")
+    filename = os.path.join(os.getcwd(), "src", "schedulers", "P_FG_RUN.py")
+    fg_run, err = run_scheduler(test, processors, {"filename": filename})
+    if err is not None:
+        print("P_FG_RUN error:", err)
         return None, None
 
     return fg_run, p_reorder
@@ -105,13 +108,19 @@ def run_scheduler(test, processors, scheduler):
     builder.set_scheduler(**scheduler)  # type: ignore
 
     model = builder.build()
-    model.run_model()
+    try:
+        model.run_model()
+    except AssertionError as e:
+        if "Packing failed" in str(e):
+            return None, "Packing failed"
 
     if model.results.total_exceeded_count > 0: # type: ignore
-        return None, model.results.total_exceeded_count # type: ignore
+        return None, f"Missed deadlines: {model.results.total_exceeded_count}"  # type: ignore
 
     data = SimData(model)
     hp = data.into_hyperperiods(HYPERPERIOD_LEN)
+    if hp is None:
+        return None, "No hyperperiods found"
     scheduler_entropy = entropy(hp, len(test), processors)
-    return scheduler_entropy, model.results.total_exceeded_count  # type: ignore
+    return scheduler_entropy, None # type: ignore
 

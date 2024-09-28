@@ -1,13 +1,14 @@
 # RUN Entropy
 
 ### Setup project
+Usage of python 3.7 is obligatory for GUI, unfortunately simsogui doesnt support newer versions of python.
 
 ```bash
 chmod +x setup.sh
-./setup.sh
+source ./setup.sh
 ```
 
-or
+or for windows (unmaintained)
 
 ```powershell
 ./setup.ps1

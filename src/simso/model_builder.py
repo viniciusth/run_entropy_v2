@@ -1,22 +1,5 @@
-from typing import TypedDict
-from typing_extensions import Unpack
-
 from simso.configuration import Configuration
 from simso.core import Model
-
-
-class SchedulerParams(TypedDict):
-    clas: str | None
-    filename: str | None
-
-
-class TaskParams(TypedDict):
-    period: int
-    activation_date: int
-    wcet: int
-    deadline: int
-    proportion: float
-
 
 class ACETModelBuilder:
     def __init__(self):
@@ -25,7 +8,7 @@ class ACETModelBuilder:
         self.cur_task_id = 1
         self.cur_cpu_id = 1
 
-    def add_task(self, **kwargs: Unpack[TaskParams]):
+    def add_task(self, **kwargs):
         self.config.add_task(
             name=f"task_{self.cur_task_id}",
             identifier=self.cur_task_id,
@@ -46,7 +29,7 @@ class ACETModelBuilder:
         )
         self.cur_cpu_id += 1
 
-    def set_scheduler(self, **kwargs: Unpack[SchedulerParams]):
+    def set_scheduler(self, **kwargs):
         self.config.scheduler_info.clas = kwargs.get("clas")  # type: ignore
         self.config.scheduler_info.filename = kwargs.get("filename")  # type: ignore
 
