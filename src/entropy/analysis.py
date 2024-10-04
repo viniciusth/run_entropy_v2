@@ -47,34 +47,24 @@ def entropy(data: List[List[List[int]]], task_amount: int, processor_amount: int
     data: Processor -> Hyperperiod -> Execution (start, end, task)
     """
 
-    def n(t: int, pi: int) -> float:
+    def n(t: int) -> float:
         ans = 0.0
         tasks_freq = [0] * (task_amount + 1)
-        assert len(data[pi]) == K, f"Expected {K} hyperperiods, got {len(data[pi])}"
-        for hyperperiod in range(K):
-            assert len(data[pi][hyperperiod]) == HYPERPERIOD_LEN, f"Expected {HYPERPERIOD_LEN} executions, got {len(data[pi][hyperperiod])}"
-            tasks_freq[data[pi][hyperperiod][t]] += 1
+        for pi in range(processor_amount):
+            assert len(data[pi]) == K, f"Expected {K} hyperperiods, got {len(data[pi])}"
+            for hyperperiod in range(K):
+                assert len(data[pi][hyperperiod]) == HYPERPERIOD_LEN, f"Expected {HYPERPERIOD_LEN} executions, got {len(data[pi][hyperperiod])}"
+                tasks_freq[data[pi][hyperperiod][t]] += 1
 
-        for task in range(1, task_amount + 1):
+        for task in range(0, task_amount + 1):
             if tasks_freq[task] == 0:
                 continue
-            p = tasks_freq[task] / K
+            p = tasks_freq[task] / (K * processor_amount)
             ans -= p * math.log2(p)
 
         return ans
 
     ans = 0.0
-    used_processors = 0
-    for pi in range(processor_amount):
-        used = False
-        for hyperperiod in range(K):
-            for t in range(HYPERPERIOD_LEN):
-                if data[pi][hyperperiod][t] != 0:
-                    used = True
-                    break
-        if not used:
-            continue
-        used_processors += 1
-        for t in range(HYPERPERIOD_LEN):
-            ans += n(t, pi)
-    return ans / used_processors
+    for t in range(HYPERPERIOD_LEN):
+        ans += n(t)
+    return ans

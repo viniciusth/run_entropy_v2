@@ -38,22 +38,32 @@ def entrypoint(utilization: float, processors: int):
     edf_entropy = entropy(edf_hp, task_amount, processors)
 
     builder.set_scheduler(
-        filename=os.path.join(os.getcwd(), "src", "schedulers", "FG_RUN.py")
+        filename=os.path.join(os.getcwd(), "src", "schedulers", "RUN_RANDOM.py")
     )  # type: ignore
     fgrun_model = builder.build()
     fgrun_model.run_model()
     fgrun_data = SimData(fgrun_model)
     fgrun_hp = fgrun_data.into_hyperperiods(HYPERPERIOD_LEN)
     fgrun_entropy = entropy(fgrun_hp, task_amount, processors)
+
+    builder.set_scheduler(clas="simso.schedulers.RUN")  # type: # pyright: ignore
+    run_model = builder.build()
+    run_model.run_model()
+    run_data = SimData(run_model)
+    run_hp = run_data.into_hyperperiods(HYPERPERIOD_LEN)
+    run_entropy = entropy(run_hp, task_amount, processors)
+
     assert (
         rerun_model.results.total_exceeded_count  # type: ignore
         == edf_model.results.total_exceeded_count  # type: ignore
         == fgrun_model.results.total_exceeded_count  # type: ignore
+        == run_model.results.total_exceeded_count  # type: ignore
         == 0
-    ), "Exceeded count is not 0: {} {} {}".format(
+    ), "Exceeded count is not 0: {} {} {} {}".format(
         rerun_model.results.total_exceeded_count,  # type: ignore
         edf_model.results.total_exceeded_count,  # type: ignore
         fgrun_model.results.total_exceeded_count,  # type: ignore
+        run_model.results.total_exceeded_count,  # type: ignore
     )
 
-    print(rerun_entropy, edf_entropy, fgrun_entropy)
+    print(rerun_entropy, edf_entropy, fgrun_entropy, run_entropy)

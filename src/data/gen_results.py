@@ -17,10 +17,26 @@ def gen_results(file_path: str):
             task = task_queue.get()
             if task is None:
                 break
-            fg_run, p_reorder = run_test(*task)
-            response_queue.put((fg_run, p_reorder))
+            test, p, i = task
 
-    def handle_result(fg_run, p_reorder, partial_result):
+            def inner(test, p, output):
+                fg_run, p_reorder = run_test(test, p)
+                output.put((fg_run, p_reorder))
+
+            output = Queue(1)
+            inner_p = Process(target=inner, args=(test, p, output))
+            inner_p.start()
+            inner_p.join(300)
+            if inner_p.is_alive():
+                print("Inner process timed out")
+                print("test index:", i)
+                inner_p.kill()
+                response_queue.put((None, None, p, i))
+                continue
+            fg_run, p_reorder = output.get()
+            response_queue.put((fg_run, p_reorder, p, i))
+
+    def handle_result(fg_run, p_reorder, partial_result, p, i):
         if fg_run is None:
             partial_result["missed"] += 1
             return
@@ -69,23 +85,23 @@ def gen_results(file_path: str):
                         tests_ran_without_saving = 0
                         # wait for all tasks so current_idx is correct.
                         while tasks_processing > 0:
-                            fg_run, p_reorder = response_queue.get()
-                            handle_result(fg_run, p_reorder, partial_result)
+                            fg_run, p_reorder, x, y = response_queue.get()
+                            handle_result(fg_run, p_reorder, partial_result, x, y)
                             tasks_processing -= 1
                         save_partial_results(partial_result, name)
                     else:
-                        fg_run, p_reorder = response_queue.get()
-                        handle_result(fg_run, p_reorder, partial_result)
+                        fg_run, p_reorder, x, y = response_queue.get()
+                        handle_result(fg_run, p_reorder, partial_result, x, y)
                         tasks_processing -= 1
 
                 current_idx += 1
                 tests_ran_without_saving += 1
                 tasks_processing += 1
-                task_queue.put([test, p])
+                task_queue.put([test, p, i])
 
     while tasks_processing > 0:
-        fg_run, p_reorder = response_queue.get()
-        handle_result(fg_run, p_reorder, partial_result)
+        fg_run, p_reorder, p, i = response_queue.get()
+        handle_result(fg_run, p_reorder, partial_result, p, i)
         tasks_processing -= 1
 
     print("Finished all tests, shutting down processes")
@@ -141,10 +157,10 @@ def run_test(test, processors):
         print("P_REORDER error:", err)
         return None, None
 
-    filename = os.path.join(os.getcwd(), "src", "schedulers", "P_FG_RUN.py")
+    filename = os.path.join(os.getcwd(), "src", "schedulers", "RUN_RANDOM.py")
     fg_run, err = run_scheduler(test, processors, {"filename": filename})
     if err is not None:
-        print("P_FG_RUN error:", err)
+        print("RUN_RANDOM error:", err)
         return None, None
 
     return fg_run, p_reorder
@@ -166,6 +182,8 @@ def run_scheduler(test, processors, scheduler):
     except AssertionError as e:
         if "Packing failed" in str(e):
             return None, "Packing failed"
+        else:
+            raise e
 
     if model.results.total_exceeded_count > 0: # type: ignore
         return None, f"Missed deadlines: {model.results.total_exceeded_count}"  # type: ignore
