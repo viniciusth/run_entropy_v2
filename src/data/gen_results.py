@@ -1,6 +1,6 @@
 
 import os
-from typing import Tuple
+from typing import List, Tuple
 from multiprocessing import Queue, Process
 from src.data.gen_buckets import PROCESSORS
 from src.entropy.analysis import HYPERPERIOD_LEN, K, entropy
@@ -20,8 +20,8 @@ def gen_results(file_path: str):
             test, p, i = task
 
             def inner(test, p, output):
-                fg_run, p_reorder = run_test(test, p)
-                output.put((fg_run, p_reorder))
+                test_output = run_test(test, p)
+                output.put(test_output)
 
             output = Queue(1)
             inner_p = Process(target=inner, args=(test, p, output))
@@ -31,18 +31,11 @@ def gen_results(file_path: str):
                 print("Inner process timed out")
                 print("test index:", i)
                 inner_p.kill()
-                response_queue.put((None, None, p, i))
+                response_queue.put((None, p, i))
                 continue
-            fg_run, p_reorder = output.get()
-            response_queue.put((fg_run, p_reorder, p, i))
+            test_output = output.get()
+            response_queue.put((test_output, p, i))
 
-    def handle_result(fg_run, p_reorder, partial_result, p, i):
-        if fg_run is None:
-            partial_result["missed"] += 1
-            return
-
-        partial_result["data"]["fg_run"][p][i].append(fg_run)
-        partial_result["data"]["p_reorder"][p][i].append(p_reorder)
 
     def save_partial_results(partial_result, name):
         with open(f"{name}_partial.json", "w") as f:
@@ -80,18 +73,18 @@ def gen_results(file_path: str):
                 print("Current idx", current_idx, end="\r")
 
                 if task_queue.full():
-                    if tests_ran_without_saving >= 32:
+                    if tests_ran_without_saving >= THREAD_COUNT * 5:
                         partial_result["idx"] = current_idx
                         tests_ran_without_saving = 0
                         # wait for all tasks so current_idx is correct.
                         while tasks_processing > 0:
-                            fg_run, p_reorder, x, y = response_queue.get()
-                            handle_result(fg_run, p_reorder, partial_result, x, y)
+                            test_output, x, y = response_queue.get()
+                            handle_result(test_output, partial_result, x, y)
                             tasks_processing -= 1
                         save_partial_results(partial_result, name)
                     else:
-                        fg_run, p_reorder, x, y = response_queue.get()
-                        handle_result(fg_run, p_reorder, partial_result, x, y)
+                        test_output, x, y = response_queue.get()
+                        handle_result(test_output, partial_result, x, y)
                         tasks_processing -= 1
 
                 current_idx += 1
@@ -100,8 +93,8 @@ def gen_results(file_path: str):
                 task_queue.put([test, p, i])
 
     while tasks_processing > 0:
-        fg_run, p_reorder, p, i = response_queue.get()
-        handle_result(fg_run, p_reorder, partial_result, p, i)
+        test_output, p, i = response_queue.get()
+        handle_result(test_output, partial_result, p, i)
         tasks_processing -= 1
 
     print("Finished all tests, shutting down processes")
@@ -128,18 +121,7 @@ def setup(file_path: str) -> Tuple[dict, dict]:
     assert input is not None, "Input is None"
     assert len(input) == len(PROCESSORS), "Input length is not as expected"
 
-    partial_result = {
-        "idx": 0,
-        "missed": 0,
-        "data": {
-            "fg_run": {
-                p: [[] for _ in range(10)] for p in PROCESSORS
-            },
-            "p_reorder": {
-                p: [[] for _ in range(10)] for p in PROCESSORS
-            },
-        },
-    }
+    partial_result = default_partial_result()
     try:
         with open(f"{file_name}_partial.json", "r") as f:
             partial_result = eval(f.read())
@@ -149,21 +131,35 @@ def setup(file_path: str) -> Tuple[dict, dict]:
 
     return input, partial_result
 
+def schedulers():
+    return [
+            {"filename": os.path.join(os.getcwd(), "src", "schedulers", "P_REORDER.py")},
+            {"clas": "simso.schedulers.P_EDF"},
+            {"filename": os.path.join(os.getcwd(), "src", "schedulers", "RUN_RANDOM.py")},
+    ]
+
+def scheduler_name(s):
+    raw = s["filename"] if "filename" in s else s["clas"]
+    return raw.split("/")[-1].split(".")[0]
+
+def scheduler_names() -> List[str]:
+    s = schedulers()
+    ans = []
+    for sched in s:
+        ans.append(scheduler_name(sched))
+    return ans
 
 def run_test(test, processors):
-    filename = os.path.join(os.getcwd(), "src", "schedulers", "P_REORDER.py")
-    p_reorder, err = run_scheduler(test, processors, {"filename": filename})
-    if err is not None:
-        print("P_REORDER error:", err)
-        return None, None
+    results = []
+    for scheduler in schedulers():
+        entropy, error = run_scheduler(test, processors, scheduler)
+        if error is not None:
+            name = scheduler_name(scheduler)
+            print(name, "failed with error:", error)
+            return {"failed": name, "entropy": None}
+        results.append(entropy)
 
-    filename = os.path.join(os.getcwd(), "src", "schedulers", "RUN_RANDOM.py")
-    fg_run, err = run_scheduler(test, processors, {"filename": filename})
-    if err is not None:
-        print("RUN_RANDOM error:", err)
-        return None, None
-
-    return fg_run, p_reorder
+    return {"entropy": results, "failed": None}
 
 def run_scheduler(test, processors, scheduler):
     builder = ACETModelBuilder()
@@ -201,4 +197,28 @@ def process_job(task_queue: Queue):
         if task is None:
             break
         run_scheduler(*task)
+
+def default_partial_result():
+    return {
+        "idx": 0,
+        "timeouts": [],
+        "missed": {
+            name: 0 for name in scheduler_names()
+        },
+        "data": {
+            name: {p: [[] for _ in range(10)] for p in PROCESSORS} for name in scheduler_names()
+        },
+    }
+
+def handle_result(output, partial_result, p, i):
+    if output is None:
+        partial_result["timeouts"].append((p, i))
+        return
+    if output["failed"] is not None:
+        partial_result["missed"][output["failed"]] += 1
+        return
+
+    s = scheduler_names()
+    for j, entropy in enumerate(output["entropy"]):
+        partial_result["data"][s[j]][p][i].append(entropy)
 

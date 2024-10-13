@@ -4,7 +4,7 @@ from simso.core import Model
 class ACETModelBuilder:
     def __init__(self):
         self.config = Configuration()
-        self.config.etm = "pacet"
+        self.config.etm = "wcet"
         self.cur_task_id = 1
         self.cur_cpu_id = 1
 
@@ -16,7 +16,8 @@ class ACETModelBuilder:
             activation_date=kwargs.get("activation_date"),
             wcet=kwargs.get("wcet"),
             deadline=kwargs.get("deadline"),
-            et_stddev=kwargs.get("proportion"),  # type: ignore
+            acet=kwargs.get("wcet") * kwargs.get("proportion"), # type: ignore
+            et_stddev=0,
         )
         self.cur_task_id += 1
 

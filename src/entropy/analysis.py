@@ -56,7 +56,7 @@ def entropy(data: List[List[List[int]]], task_amount: int, processor_amount: int
                 assert len(data[pi][hyperperiod]) == HYPERPERIOD_LEN, f"Expected {HYPERPERIOD_LEN} executions, got {len(data[pi][hyperperiod])}"
                 tasks_freq[data[pi][hyperperiod][t]] += 1
 
-        for task in range(0, task_amount + 1):
+        for task in range(1, task_amount + 1):
             if tasks_freq[task] == 0:
                 continue
             p = tasks_freq[task] / (K * processor_amount)

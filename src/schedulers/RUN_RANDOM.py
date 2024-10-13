@@ -13,8 +13,6 @@ from simso.schedulers.RUNServer import EDFServer, TaskServer, DualServer, \
     add_job, get_child_tasks
 from simso.schedulers import scheduler
 
-from src.schedulers.RUN_definitions import delta_t
-
 @scheduler("src.schedulers.RUN_RANDOM")
 class RUN_RANDOM(Scheduler):
     """
@@ -271,7 +269,7 @@ class ProperSubsystem(object):
             # tm = max(int(slack * random.random()), 1)
             tm = slack
             self.timer = Timer(self.sim, ProperSubsystem.random_event,
-                               (self, random_jobs[0].cpu, idx), tm, cpu=random_jobs[0].cpu, in_ms=False)
+                               (self, self.processors[0], idx), tm, cpu=self.processors[0], in_ms=False)
             self.timer.start()
             self.random_jobs["jobs"] = random_jobs
             self.random_jobs["idx"] += 1
@@ -302,7 +300,12 @@ def select_jobs(server, virtual, execute, first, is_randomized, slack):
                 min_server = min(active_servers, key=lambda s: s.next_deadline)
                 # jobs that are too small will just cause a lot of context switches for no reason
                 if first and slack > 10000:
-                    min_server = random.choice(active_servers)
+                    min_server = None
+                    min_server_idx = random.randint(0, len(active_servers)) # able to choose len which means no job
+                    if min_server_idx < len(active_servers):
+                        min_server = active_servers[min_server_idx]
+                    else:
+                        jobs.append((None, True))
                     is_randomized = True
 
             for child in server.children:
