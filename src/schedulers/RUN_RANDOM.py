@@ -173,7 +173,6 @@ class ProperSubsystem(object):
         self.to_reschedule = False
         self.timer = None
         self.random_jobs = {
-            "jobs": [],
             "idx": 0,
             "finished": False,
         }
@@ -206,23 +205,20 @@ class ProperSubsystem(object):
         self.update_budget()
         self.resched(cpu)
 
-    def random_event(self, cpu, idx):
+    def random_event(self, idx):
         """
         Random scheduling event. Happens when a timer for a set of randomized jobs fires.
         """
         if idx != self.random_jobs["idx"] or self.random_jobs["finished"]:
             return
         self.update_budget()
-        self.resched(cpu)
-        self.random_jobs["jobs"] = []
+        self.resched(self.processors[0])
         self.random_jobs["finished"] = True
-
 
     def get_slack(self, now):
         servers = self.root.children
         beta = sum(s.budget for s in servers)
         omega = max(0, self.root.next_deadline - now - beta)
-        # delta = delta_t(self.utilization, servers, self.root.next_deadline, now)
         return omega
 
     def schedule(self):
@@ -233,7 +229,7 @@ class ProperSubsystem(object):
         decision = []
 
         slack = self.get_slack(self.sim.now())
-        # print("slack", slack)
+        # print("scheduling at", self.sim.now(), slack)
 
         self.virtual = []
         jobs = select_jobs(self.root, self.virtual, True, True, False, slack)
@@ -265,13 +261,12 @@ class ProperSubsystem(object):
         if len(random_jobs) > 0:
             assert len(random_jobs) == 1
             # print("random_jobs", len(random_jobs), len(self.random_jobs), self.sim.now())
+            # print("random_jobs", random_jobs[0] is None, self.random_jobs, slack, self.sim.now())
             idx = self.random_jobs["idx"] + 1
-            # tm = max(int(slack * random.random()), 1)
-            tm = slack
+            # slack = max(int(slack * random.random()), 1)
             self.timer = Timer(self.sim, ProperSubsystem.random_event,
-                               (self, self.processors[0], idx), tm, cpu=self.processors[0], in_ms=False)
+                               (self, idx), int(slack * 0.95), cpu=self.processors[0], in_ms=False)
             self.timer.start()
-            self.random_jobs["jobs"] = random_jobs
             self.random_jobs["idx"] += 1
             self.random_jobs["finished"] = False
 

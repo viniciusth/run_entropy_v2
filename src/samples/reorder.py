@@ -12,10 +12,10 @@ def entrypoint(utilization: float, processors: int):
     for _ in range(processors):
         builder.add_cpu()
 
-    # task_amount = random.randint(processors + 2, 3 * processors)
-    # tasks = gen_tasks(task_amount, utilization)
-    task_amount = 5
-    tasks = [ { "period": 10, "deadline": 10, "activation_date": 0, "proportion": 0.5, "wcet": 1, } for _ in range(task_amount) ]
+    task_amount = random.randint(processors + 2, 3 * processors)
+    tasks = gen_tasks(task_amount, utilization)
+    # task_amount = 5
+    # tasks = [ { "period": 10, "deadline": 10, "activation_date": 0, "proportion": 0.5, "wcet": 1, } for _ in range(task_amount) ]
     for task in tasks:
         builder.add_task(**task)
     builder.set_duration(HYPERPERIOD_LEN * K)
