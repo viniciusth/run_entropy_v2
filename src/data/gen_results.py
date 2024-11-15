@@ -21,7 +21,7 @@ def gen_results(file_path: str):
 
             def inner(test, p, output):
                 test_output = run_test(test, p)
-                output.put(test_output)
+                output.put((test_output, test))
 
             output = Queue(1)
             inner_p = Process(target=inner, args=(test, p, output))
@@ -31,7 +31,7 @@ def gen_results(file_path: str):
                 print("Inner process timed out")
                 print("test index:", i)
                 inner_p.kill()
-                response_queue.put((None, p, i))
+                response_queue.put(((None, test), p, i))
                 continue
             test_output = output.get()
             response_queue.put((test_output, p, i))
@@ -210,9 +210,10 @@ def default_partial_result():
         },
     }
 
-def handle_result(output, partial_result, p, i):
+def handle_result(test_output, partial_result, p, i):
+    output, test = test_output
     if output is None:
-        partial_result["timeouts"].append((p, i))
+        partial_result["timeouts"].append((p, i, test))
         return
     if output["failed"] is not None:
         partial_result["missed"][output["failed"]] += 1
@@ -220,5 +221,9 @@ def handle_result(output, partial_result, p, i):
 
     s = scheduler_names()
     for j, entropy in enumerate(output["entropy"]):
-        partial_result["data"][s[j]][p][i].append(entropy)
+        partial_result["data"][s[j]][p][i].append({
+            "entropy": entropy,
+            "test": test,
+        })
+
 
