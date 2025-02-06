@@ -27,12 +27,15 @@ class SimData:
 
             self.processor_executions.append(computed)
 
-    def into_hyperperiods(self, hyperperiod_len: int):
+    def into_hyperperiods(self, hyperperiod_len: int, hyperperiod_amount=None):
         """
         Returns a list of processor executions, where each execution is split into hyperperiods of length hyperperiod_len.
         """
         executions = []
         all_empty = True
+        if hyperperiod_amount is None:
+            hyperperiod_amount = K
+
         for processor in self.processor_executions:
             hyperperiods = []
             cur_hyperperiod_end = 0
@@ -54,13 +57,13 @@ class SimData:
                     for i in range(cur_hyperperiod_end, end):
                         hyperperiods[-1][i % hyperperiod_len] = task
                     cur_hyperperiod_end += hyperperiod_len
-            diff = K - len(hyperperiods)
+            diff = hyperperiod_amount - len(hyperperiods)
             if diff > 0:
                 hyperperiods += [[0 for _ in range(hyperperiod_len)] for _ in range(diff)]
             else:
                 all_empty = False
 
-            assert len(hyperperiods) == K, f"Expected {K} hyperperiods, got {len(hyperperiods)}"
+            assert len(hyperperiods) == hyperperiod_amount, f"Expected {hyperperiod_amount} hyperperiods, got {len(hyperperiods)}"
             executions.append(hyperperiods)
         if all_empty:
             print("All processors are empty, skipping invalid taskset")

@@ -1,7 +1,6 @@
 from collections import defaultdict
 from typing import Any
 
-from matplotlib.figure import Axes
 from src.data.gen_buckets import PROCESSORS, TASKS_PER_BUCKET
 from src.data.gen_results import scheduler_names
 import matplotlib.pyplot as plt
@@ -31,7 +30,7 @@ def run_analysis(file: str):
             cnt = cnts[0]
             total_cnt += cnt
             for c in cnts:
-                assert c == cnt, "Lengths don't match"
+                assert c == cnt, f"Lengths don't match {cnts}"
 
             if cnt == 0:
                 print("No data")
@@ -42,11 +41,12 @@ def run_analysis(file: str):
                 entropy = 0
                 entropymax = 0
                 entropymin = int(1e9)
+                sched_cnt = len(data["data"][s][p][i])
                 for test in data["data"][s][p][i]:
-                    entropy += test["entropy"]
+                    entropy += test["entropy"] / sched_cnt
                     entropymax = max(entropymax, test["entropy"])
                     entropymin = min(entropymin, test["entropy"])
-                output += f" | {s} {entropy/cnt} ({entropymin}, {entropymax})"
+                output += f" | {s} {entropy/sched_cnt} ({entropymin}, {entropymax})"
 
             print(f"{i*10}% -> {(i+1)*10}%")
             print(output)
@@ -68,28 +68,33 @@ def boxplot_avg_entropy_by_utilization_bucket(data):
         for i in range(10):
             key = f"[0.{i}, {(i+1)//10}.{(i+1)%10}]"
             entropy_reorder = []
+            entropy_run = []
             entropy_edf = []
             entropy_randrun = []
             for s in scheds:
+                sched_cnt = len(data["data"][s][p][i])
                 for test in data["data"][s][p][i]:
                     if s == "P_REORDER":
-                        entropy_reorder.append(test["entropy"])
-                    elif s == "simso":
-                        entropy_edf.append(test["entropy"])
+                        entropy_reorder.append(test["entropy"] / sched_cnt)
+                    elif s == "P_EDF":
+                        entropy_edf.append(test["entropy"] / sched_cnt)
                     elif s == "RUN_RANDOM":
-                        entropy_randrun.append(test["entropy"])
-            gdata[key] = [entropy_reorder, entropy_edf, entropy_randrun]
+                        entropy_randrun.append(test["entropy"] / sched_cnt)
+                    elif s == "RUN":
+                        entropy_run.append(test["entropy"] / sched_cnt)
+
+            gdata[key] = [entropy_reorder, entropy_edf, entropy_randrun, entropy_run]
 
         # Categories
         categories = list(gdata.keys())
-        methods = ["REORDER", "EDF", "RANDRUN"]
+        methods = ["REORDER", "EDF", "RUN-R", "RUN"]
 
         # Data Preparation
         x = np.arange(len(categories))  # X-axis positions
-        width = 0.2  # Width of each bar
+        width = 0.15  # Width of each bar
 
         # Plotting
-        _, ax = plt.subplots(figsize=(10, 6))
+        _, ax = plt.subplots(figsize=(12, 6))
         ax: Any
 
         # Create a box for each method
@@ -128,14 +133,15 @@ def scatter_entropy_by_utilization(data):
         gdata = defaultdict(list)
         for s in scheds:
             for i in range(10):
+                sched_cnt = len(data["data"][s][p][i])
                 for test in data["data"][s][p][i]:
                     task_count_min = min(task_count_min, len(test["test"]))
                     task_count_max = max(task_count_max, len(test["test"]))
                     u = sum(task["wcet"] / task["period"] for task in test["test"])
                     sz = len(test["test"])
-                    gdata[sz].append((u, test["entropy"]))
-                    entropy_max = max(entropy_max, test["entropy"])
-                    entropy_min = min(entropy_min, test["entropy"])
+                    gdata[sz].append((u, test["entropy"] / sched_cnt))
+                    entropy_max = max(entropy_max, test["entropy"] / sched_cnt)
+                    entropy_min = min(entropy_min, test["entropy"] / sched_cnt)
 
         norm = plt.Normalize(vmin=task_count_min, vmax=task_count_max)
         entropyNorm = plt.Normalize(vmin=0.9*entropy_min, vmax=1.1*entropy_max)
@@ -144,8 +150,9 @@ def scatter_entropy_by_utilization(data):
         ax: Any
         marker_by_sched = {
             "P_REORDER": "o",
-            "simso": "s",
-            "RUN_RANDOM": "^"
+            "P_EDF": "s",
+            "RUN_RANDOM": "^",
+            "RUN": "x"
         }
         for s in scheds:
             x = []

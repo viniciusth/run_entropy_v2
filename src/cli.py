@@ -2,6 +2,7 @@ import typer
 from src.data.analysis import run_analysis
 from src.data.gen_buckets import gen_buckets
 from src.data.gen_results import gen_results
+from src.samples import tables
 import src.samples.reorder as reorder
 import logging
 import simsogui
@@ -17,6 +18,10 @@ def run_sample(
 ):
     if name is None or name.lower() == "testing":
         reorder.entrypoint(utilization, processors)
+    if name == "tables":
+        print("Running tables")
+        tables.entrypoint()
+
 
 
 @app.command()

@@ -5,11 +5,11 @@ import logging
 import math
 
 from simso.core import Scheduler, Timer, Processor
-from simso.core.Task import PTask
+from simso.core.Task import PTask, TaskInfo
 from simso.core.Job import Job
 from simso.schedulers import scheduler
 
-LastJob = namedtuple("LastJob", ["task", "job", "start", "end"])
+LastJob = namedtuple("LastJob", ["task", "absolute_deadline", "start", "end"])
 
 infinity = int(1e30)
 
@@ -26,7 +26,7 @@ class REORDER(Scheduler):
         self.rib: Dict[PTask, int] = {}
         self.last_task_job: Dict[PTask, Tuple[int, int]] = {}
         # last job that ran, used to update the remaining inversion budget on schedule
-        self.last_job = LastJob(None, None, -1, -1)
+        self.last_job = LastJob(None, -1, -1, -1)
 
         self.ready_list = []
         self.to_resched = False
@@ -87,19 +87,27 @@ class REORDER(Scheduler):
                     ("chose", highest_priority_job.task.identifier, "with rib", hp_rib)
                 )
                 self.last_job = LastJob(
-                    highest_priority_job.task, highest_priority_job, self.sim.now(), -1
+                    highest_priority_job.task, highest_priority_job.absolute_deadline, self.sim.now(), -1
                 )
                 return (highest_priority_job, cpu)
 
             mthp = self.minimum_inversion_deadline(highest_priority_job, ready_jobs)
             candidates = [j for j in ready_jobs if j.absolute_deadline <= mthp]
+            candidates.append(None)
 
             selected_job = random.choice(candidates)
-            self.last_job = LastJob(selected_job.task, selected_job, self.sim.now(), -1)
+            task_identifier = "IDLE"
+            selected_job_rib = -1
+            if selected_job is None:
+                self.last_job = LastJob({}, infinity, self.sim.now(), -1)
+            else:
+                self.last_job = LastJob(selected_job.task, selected_job.absolute_deadline, self.sim.now(), -1)
+                task_identifier = selected_job.task.identifier
+                selected_job_rib = self.rib[selected_job.task]
 
-            if selected_job.absolute_deadline == highest_priority_job.absolute_deadline:
+            if self.last_job.absolute_deadline == highest_priority_job.absolute_deadline:
                 logging.debug(
-                    ("chose", selected_job.task.identifier, "with rib", hp_rib)
+                    ("chose", task_identifier, "with rib", hp_rib)
                 )
                 return (selected_job, cpu)
 
@@ -107,7 +115,7 @@ class REORDER(Scheduler):
                 [
                     self.rib[j.task]
                     for j in ready_jobs
-                    if j.absolute_deadline < selected_job.absolute_deadline
+                    if j.absolute_deadline < self.last_job.absolute_deadline
                 ]
             )
             if v_hat >= 0:
@@ -118,9 +126,9 @@ class REORDER(Scheduler):
             logging.debug(
                 (
                     "chose",
-                    selected_job.task.identifier,
+                    task_identifier,
                     "with rib",
-                    self.rib[selected_job.task],
+                    selected_job_rib,
                     "and v_hat",
                     v_hat,
                 )
@@ -137,7 +145,7 @@ class REORDER(Scheduler):
             if (
                 task_i == self.last_job.task
                 or task_i.job == None
-                or task_i.job.absolute_deadline >= self.last_job.job.absolute_deadline
+                or task_i.job.absolute_deadline >= self.last_job.absolute_deadline
             ):
                 continue
             x = intersection(

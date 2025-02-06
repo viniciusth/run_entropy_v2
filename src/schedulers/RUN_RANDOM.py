@@ -179,6 +179,10 @@ class ProperSubsystem(object):
         self.utilization = sum(
             [s.utilization for s in root.children]
         )
+        # print("Utilization", self.utilization, "Root", root)
+        # print("Children", root.children)
+        # print("Processors", processors)
+        # print("Virtual", self.virtual)
 
     def update_budget(self):
         """
@@ -218,6 +222,7 @@ class ProperSubsystem(object):
     def get_slack(self, now):
         servers = self.root.children
         beta = sum(s.budget for s in servers)
+        # print([s.budget for s in servers])
         omega = max(0, self.root.next_deadline - now - beta)
         return omega
 
@@ -294,6 +299,7 @@ def select_jobs(server, virtual, execute, first, is_randomized, slack):
             if active_servers:
                 min_server = min(active_servers, key=lambda s: s.next_deadline)
                 # jobs that are too small will just cause a lot of context switches for no reason
+                # this should probably be sim.cycles_per_ms instead of static 10k
                 if first and slack > 10000:
                     min_server = None
                     min_server_idx = random.randint(0, len(active_servers)) # able to choose len which means no job

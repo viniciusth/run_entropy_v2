@@ -11,7 +11,6 @@ from src.simso.sim_data import SimData
 THREAD_COUNT = 8
 
 def gen_results(file_path: str):
-
     def process_job(task_queue: Queue, response_queue: Queue):
         while True:
             task = task_queue.get()
@@ -133,14 +132,16 @@ def setup(file_path: str) -> Tuple[dict, dict]:
 
 def schedulers():
     return [
-            {"filename": os.path.join(os.getcwd(), "src", "schedulers", "P_REORDER.py")},
             {"clas": "simso.schedulers.P_EDF"},
+            {"clas": "simso.schedulers.RUN"},
+            {"filename": os.path.join(os.getcwd(), "src", "schedulers", "P_REORDER.py")},
             {"filename": os.path.join(os.getcwd(), "src", "schedulers", "RUN_RANDOM.py")},
     ]
 
 def scheduler_name(s):
-    raw = s["filename"] if "filename" in s else s["clas"]
-    return raw.split("/")[-1].split(".")[0]
+    if "clas" in s:
+        return s["clas"].split(".")[-1]
+    return s["filename"].split("/")[-1].split(".")[0]
 
 def scheduler_names() -> List[str]:
     s = schedulers()
@@ -152,7 +153,7 @@ def scheduler_names() -> List[str]:
 def run_test(test, processors):
     results = []
     for scheduler in schedulers():
-        entropy, error = run_scheduler(test, processors, scheduler)
+        entropy, _, error = run_scheduler(test, processors, scheduler)
         if error is not None:
             name = scheduler_name(scheduler)
             print(name, "failed with error:", error)
@@ -177,26 +178,19 @@ def run_scheduler(test, processors, scheduler):
         model.run_model()
     except AssertionError as e:
         if "Packing failed" in str(e):
-            return None, "Packing failed"
+            return None, None, "Packing failed"
         else:
             raise e
 
     if model.results.total_exceeded_count > 0: # type: ignore
-        return None, f"Missed deadlines: {model.results.total_exceeded_count}"  # type: ignore
+        return None, None, f"Missed deadlines: {model.results.total_exceeded_count}"  # type: ignore
 
     data = SimData(model)
     hp = data.into_hyperperiods(HYPERPERIOD_LEN)
     if hp is None:
-        return None, "No hyperperiods found"
+        return None, None, "No hyperperiods found"
     scheduler_entropy = entropy(hp, len(test), processors)
-    return scheduler_entropy, None # type: ignore
-
-def process_job(task_queue: Queue):
-    while True:
-        task = task_queue.get()
-        if task is None:
-            break
-        run_scheduler(*task)
+    return scheduler_entropy, model, None # type: ignore
 
 def default_partial_result():
     return {
